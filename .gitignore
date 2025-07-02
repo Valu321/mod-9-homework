@@ -1,0 +1,30 @@
+# Plik ze zmiennymi środowiskowymi
+.env
+
+# Zapisane modele i pipeline'y
+*.joblib
+*.pkl
+
+# Foldery cache Pythona
+__pycache__/
+*.pyc
+*.pyo
+*.pydgit 
+
+# Foldery środowisk wirtualnych
+.venv
+venv/
+env/
+
+# Pliki i foldery generowane przez IDE
+.idea/
+.vscode/
+
+# Pliki konfiguracyjne Streamlit
+.streamlit/
+
+# Checkpointy Jupyter Notebook
+.ipynb_checkpoints/
+
+From_gotoit
+*.docx

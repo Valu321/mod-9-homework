@@ -1,0 +1,54 @@
+# Plik: spec.yaml
+# Konfiguracja dla DigitalOcean App Platform
+
+name: polmaraton-estimator-app
+region: fra # Zmień na region swojej aplikacji, np. ams, nyc
+
+services:
+- name: web
+  # Użyj obrazu dostarczonego przez DigitalOcean dla Streamlit
+  # lub podaj własny, jeśli budujesz za pomocą Dockerfile
+  # W tym przypadku App Platform sam zbuduje środowisko na podstawie requirements.txt
+  git:
+    branch: main # lub nazwa Twojej głównej gałęzi
+    repo_clone_url: https://github.com/TWOJ_USER/TWOJE_REPO.git # Zmień na URL Twojego repozytorium
+  
+  # Polecenie uruchamiające aplikację Streamlit
+  run_command: streamlit run app.py --server.port 8080 --server.address 0.0.0.0
+
+  # Zmienne środowiskowe
+  # WAŻNE: Wartości dla kluczy API zostaną podane w interfejsie DigitalOcean
+  # jako sekrety (zaszyfrowane).
+  envs:
+  - key: OPENAI_API_KEY
+    scope: RUN_TIME
+    type: SECRET
+    value: ${OPENAI_API_KEY}
+  
+  - key: LANGFUSE_PUBLIC_KEY
+    scope: RUN_TIME
+    type: SECRET
+    value: ${LANGFUSE_PUBLIC_KEY}
+    
+  - key: LANGFUSE_SECRET_KEY
+    scope: RUN_TIME
+    type: SECRET
+    value: ${LANGFUSE_SECRET_KEY}
+
+  - key: DO_SPACES_KEY
+    scope: RUN_TIME
+    type: SECRET
+    value: ${DO_SPACES_KEY}
+
+  - key: DO_SPACES_SECRET
+    scope: RUN_TIME
+    type: SECRET
+    value: ${DO_SPACES_SECRET}
+
+  - key: DO_SPACES_BUCKET
+    scope: RUN_TIME
+    value: "nazwa-twojego-space" # Zmień na nazwę swojego Space
+
+  - key: DO_SPACES_ENDPOINT_URL
+    scope: RUN_TIME
+    value: "https://fra1.digitaloceanspaces.com" # Zmień na endpoint swojego regionu
