@@ -11,7 +11,7 @@ services:
   # W tym przypadku App Platform sam zbuduje środowisko na podstawie requirements.txt
   git:
     branch: main # lub nazwa Twojej głównej gałęzi
-    repo_clone_url: https://github.com/TWOJ_USER/TWOJE_REPO.git # Zmień na URL Twojego repozytorium
+    repo_clone_url: https://github.com/Valu321/mod-9-homework.git # Zmień na URL Twojego repozytorium
   
   # Polecenie uruchamiające aplikację Streamlit
   run_command: streamlit run app.py --server.port 8080 --server.address 0.0.0.0
@@ -47,8 +47,8 @@ services:
 
   - key: DO_SPACES_BUCKET
     scope: RUN_TIME
-    value: "nazwa-twojego-space" # Zmień na nazwę swojego Space
+    value: "mod-9-homework" # Zmień na nazwę swojego Space
 
   - key: DO_SPACES_ENDPOINT_URL
     scope: RUN_TIME
-    value: "https://fra1.digitaloceanspaces.com" # Zmień na endpoint swojego regionu
+    value: "https://mod-9-homework.fra1.digitaloceanspaces.com" # Zmień na endpoint swojego regionu
