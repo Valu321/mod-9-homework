@@ -1,19 +1,22 @@
 # Plik: spec.yaml
-# Konfiguracja dla DigitalOcean App Platform
+# Ostateczna, poprawiona konfiguracja dla DigitalOcean App Platform
 
-name: polmaraton-estimator-app
+name: starfish-app
 region: fra # Zmień na region swojej aplikacji, np. ams, nyc
 
 services:
 - name: web
-  # Użyj obrazu dostarczonego przez DigitalOcean dla Streamlit
-  # lub podaj własny, jeśli budujesz za pomocą Dockerfile
-  # W tym przypadku App Platform sam zbuduje środowisko na podstawie requirements.txt
   git:
     branch: main # lub nazwa Twojej głównej gałęzi
     repo_clone_url: https://github.com/Valu321/mod-9-homework.git # Zmień na URL Twojego repozytorium
   
-  # Polecenie uruchamiające aplikację Streamlit
+  # --- POPRAWKA ---
+  # Jawnie informujemy DigitalOcean, na którym porcie nasłuchuje nasza usługa.
+  # Ten port będzie używany do sprawdzania stanu (health checks) i kierowania ruchu.
+  http_port: 8080
+  
+  # Polecenie uruchamiające aplikację Streamlit.
+  # Zmuszamy Streamlit, aby uruchomił się na porcie 8080.
   run_command: streamlit run app.py --server.port 8080 --server.address 0.0.0.0
 
   # Zmienne środowiskowe
