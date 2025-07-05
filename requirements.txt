@@ -1,6 +1,4 @@
-﻿Plik: requirements.txt
-Zaktualizowane zależności projektu
-pandas==2.1.4
+﻿pandas==2.1.4
 scikit-learn==1.3.2
 boto3==1.34.4
 streamlit==1.32.2
@@ -9,4 +7,4 @@ joblib==1.3.2
 langfuse==2.15.1
 pandera==0.18.0
 python-dotenv==1.0.1
-pycaret[full]==3.2.0 # Dodana biblioteka PyCaret z pełnym zestawem modeli
+pycaret[full]==3.2.0
