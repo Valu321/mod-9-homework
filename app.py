@@ -9,9 +9,8 @@ import io
 from dotenv import load_dotenv
 import pandera as pa
 from pandera.errors import SchemaError
-# Poprawione importy - importujemy Langfuse i observe osobno
+# Poprawiony, ostateczny import
 from langfuse import Langfuse
-from langfuse.decorators import observe
 from pycaret.regression import load_model, predict_model
 
 # Wczytaj zmienne środowiskowe z pliku .env
@@ -32,13 +31,22 @@ if OPENAI_API_KEY:
     openai.api_key = OPENAI_API_KEY
 
 # Inicjalizacja Langfuse - upewniamy się, że klucze istnieją.
-# Dekorator @observe będzie działał tylko, jeśli ten obiekt zostanie poprawnie utworzony.
 if LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY:
     langfuse = Langfuse(
         public_key=LANGFUSE_PUBLIC_KEY,
         secret_key=LANGFUSE_SECRET_KEY,
         host="https://cloud.langfuse.com"
     )
+else:
+    # Tworzymy atrapę obiektu, jeśli klucze nie są dostępne,
+    # aby uniknąć błędów przy wywoływaniu dekoratora.
+    class MockLangfuse:
+        def trace(self, *args, **kwargs):
+            def decorator(func):
+                return func
+            return decorator
+    langfuse = MockLangfuse()
+
 
 # --- Schemat walidacji Pandera ---
 llm_output_schema = pa.DataFrameSchema({
@@ -79,8 +87,9 @@ def format_time_from_seconds(total_seconds):
     seconds = int(total_seconds % 60)
     return f"{hours:02}:{minutes:02}:{seconds:02}"
 
-# Używamy poprawnie zaimportowanego dekoratora @observe()
-@observe()
+# --- POPRAWKA ---
+# Używamy poprawnego dekoratora @langfuse.trace()
+@langfuse.trace()
 def extract_data_with_llm(user_input):
     """Używa LLM do ekstrakcji danych z tekstu użytkownika."""
     if not OPENAI_API_KEY:
@@ -117,8 +126,6 @@ if st.button("Szacuj czas", type="primary"):
         st.error("Model predykcyjny nie jest dostępny. Skontaktuj się z administratorem.")
     else:
         with st.spinner("Analizuję Twoje dane i liczę..."):
-            # --- POPRAWKA ---
-            # Używamy poprawnej nazwy zmiennej 'user_description'
             extracted_data = extract_data_with_llm(user_description)
             if not extracted_data:
                 st.error("Nie udało się przetworzyć Twojego opisu.")
