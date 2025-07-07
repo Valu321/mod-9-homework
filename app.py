@@ -58,14 +58,15 @@ def load_model_from_spaces():
     """Pobiera i wczytuje pipeline PyCaret z DigitalOcean Spaces."""
     try:
         client = get_boto_client()
-        local_path_with_ext = 'downloaded_model.pkl'
-        local_path_no_ext = 'downloaded_model'
         
-        client.download_file(DO_SPACES_BUCKET, MODEL_FILE_KEY, local_path_with_ext)
+        # --- OPTYMALIZACJA PAMIĘCI ---
+        # Pobieramy model jako obiekt w pamięci, zamiast zapisywać go na dysku.
+        response = client.get_object(Bucket=DO_SPACES_BUCKET, Key=MODEL_FILE_KEY)
+        model_bytes = response['Body'].read()
         
-        model = load_model(local_path_no_ext)
+        # PyCaret może ładować modele bezpośrednio z bajtów, co oszczędza I/O.
+        model = load_model(io.BytesIO(model_bytes))
         
-        os.remove(local_path_with_ext)
         return model
     except Exception as e:
         st.error(f"Nie udało się załadować modelu: {e}")
@@ -153,7 +154,18 @@ if st.button("Szacuj czas", type="primary"):
                     czas_5km_s = time_str_to_seconds(tempo_5km_str)
                     tempo_1km_s = czas_5km_s / 5
 
-                    input_df = pd.DataFrame({'wiek': [wiek], 'plec': [plec], 'tempo_5km_s_na_km': [tempo_1km_s]})
+                    # --- OPTYMALIZACJA PAMIĘCI ---
+                    # Definiujemy bardziej oszczędne typy danych dla DataFrame'u.
+                    input_data = {
+                        'wiek': [wiek], 
+                        'plec': [plec], 
+                        'tempo_5km_s_na_km': [tempo_1km_s]
+                    }
+                    input_df = pd.DataFrame(input_data).astype({
+                        'wiek': 'int16',
+                        'plec': 'category',
+                        'tempo_5km_s_na_km': 'float32'
+                    })
                     
                     predictions = predict_model(pipeline, data=input_df)
                     prediction_s = predictions['prediction_label'].iloc[0]
