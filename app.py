@@ -9,8 +9,10 @@ import io
 from dotenv import load_dotenv
 import pandera as pa
 from pandera.errors import SchemaError
-# Poprawiony, ostateczny import - importujemy trace i Langfuse osobno
-from langfuse import Langfuse, trace
+# --- OSTATECZNA POPRAWKA ---
+# Importujemy Langfuse i dekorator trace z jego właściwej lokalizacji
+from langfuse import Langfuse
+from langfuse.decorators import trace
 from pycaret.regression import load_model, predict_model
 
 # Wczytaj zmienne środowiskowe z pliku .env
@@ -79,7 +81,6 @@ def format_time_from_seconds(total_seconds):
     seconds = int(total_seconds % 60)
     return f"{hours:02}:{minutes:02}:{seconds:02}"
 
-# --- POPRAWKA ---
 # Używamy poprawnego, zaimportowanego dekoratora @trace()
 @trace()
 def extract_data_with_llm(user_input):
