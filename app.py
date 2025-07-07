@@ -59,14 +59,18 @@ def load_model_from_spaces():
     try:
         client = get_boto_client()
         
-        # --- OPTYMALIZACJA PAMIĘCI ---
-        # Pobieramy model jako obiekt w pamięci, zamiast zapisywać go na dysku.
-        response = client.get_object(Bucket=DO_SPACES_BUCKET, Key=MODEL_FILE_KEY)
-        model_bytes = response['Body'].read()
+        # Wracamy do niezawodnej metody zapisu do pliku tymczasowego,
+        # ponieważ ładowanie z `io.BytesIO` nie jest wspierane przez `load_model` w ten sposób.
+        local_path_with_ext = 'downloaded_model.pkl'
+        local_path_no_ext = 'downloaded_model'
         
-        # PyCaret może ładować modele bezpośrednio z bajtów, co oszczędza I/O.
-        model = load_model(io.BytesIO(model_bytes))
+        client.download_file(DO_SPACES_BUCKET, MODEL_FILE_KEY, local_path_with_ext)
         
+        # Przekazujemy do funkcji load_model nazwę pliku BEZ rozszerzenia .pkl
+        model = load_model(local_path_no_ext)
+        
+        # Usuwamy plik tymczasowy po załadowaniu modelu do pamięci
+        os.remove(local_path_with_ext)
         return model
     except Exception as e:
         st.error(f"Nie udało się załadować modelu: {e}")
@@ -122,8 +126,9 @@ st.set_page_config(page_title="Szacowanie Czasu Półmaratonu", layout="wide")
 st.title("🏃‍♂️ Estymator Czasu Ukończenia Półmaratonu")
 st.markdown("Opisz siebie, a my oszacujemy Twój czas! Podaj swój **wiek**, **płeć** oraz **średnie tempo na 5 km**.")
 
-# --- DODANY OBRAZEK ---
-st.image("https://images.pexels.com/photos/255934/pexels-photo-255934.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", caption="Gotowi do startu!")
+# --- ZMIENIONY OBRAZEK ---
+# Używamy stabilnego linku do grafiki w stylu kreskówkowym
+st.image("https://img.freepik.com/free-vector/running-competition-illustration_1284-65362.jpg", caption="Walczymy o nowe rekordy!")
 
 
 pipeline = load_model_from_spaces()
