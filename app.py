@@ -9,8 +9,8 @@ import io
 from dotenv import load_dotenv
 import pandera as pa
 from pandera.errors import SchemaError
-# Poprawiony, ostateczny import
-from langfuse import Langfuse
+# Poprawiony, ostateczny import - importujemy trace i Langfuse osobno
+from langfuse import Langfuse, trace
 from pycaret.regression import load_model, predict_model
 
 # Wczytaj zmienne środowiskowe z pliku .env
@@ -30,22 +30,14 @@ MODEL_FILE_KEY = 'models/halfmarathon_pipeline.pkl'
 if OPENAI_API_KEY:
     openai.api_key = OPENAI_API_KEY
 
-# Inicjalizacja Langfuse - upewniamy się, że klucze istnieją.
+# Inicjalizacja Langfuse.
+# Jeśli klucze nie zostaną podane, dekorator @trace nie będzie nic robił.
 if LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY:
     langfuse = Langfuse(
         public_key=LANGFUSE_PUBLIC_KEY,
         secret_key=LANGFUSE_SECRET_KEY,
         host="https://cloud.langfuse.com"
     )
-else:
-    # Tworzymy atrapę obiektu, jeśli klucze nie są dostępne,
-    # aby uniknąć błędów przy wywoływaniu dekoratora.
-    class MockLangfuse:
-        def trace(self, *args, **kwargs):
-            def decorator(func):
-                return func
-            return decorator
-    langfuse = MockLangfuse()
 
 
 # --- Schemat walidacji Pandera ---
@@ -88,8 +80,8 @@ def format_time_from_seconds(total_seconds):
     return f"{hours:02}:{minutes:02}:{seconds:02}"
 
 # --- POPRAWKA ---
-# Używamy poprawnego dekoratora @langfuse.trace()
-@langfuse.trace()
+# Używamy poprawnego, zaimportowanego dekoratora @trace()
+@trace()
 def extract_data_with_llm(user_input):
     """Używa LLM do ekstrakcji danych z tekstu użytkownika."""
     if not OPENAI_API_KEY:
