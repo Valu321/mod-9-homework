@@ -127,8 +127,8 @@ st.title("🏃‍♂️ Estymator Czasu Ukończenia Półmaratonu")
 st.markdown("Opisz siebie, a my oszacujemy Twój czas! Podaj swój **wiek**, **płeć** oraz **średnie tempo na 5 km**.")
 
 # --- ZMIENIONY OBRAZEK ---
-# Używamy stabilnego linku do grafiki w stylu kreskówkowym
-st.image("https://img.freepik.com/free-vector/running-competition-illustration_1284-65362.jpg", caption="Walczymy o nowe rekordy!")
+# Używamy ścieżki do "surowego" pliku na GitHubie.
+st.image("https://raw.githubusercontent.com/Valu321/mod-9-homework/main/Image_19f2o619f2o619f2.png", caption="Walczymy o nowe rekordy!")
 
 
 pipeline = load_model_from_spaces()
