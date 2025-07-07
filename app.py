@@ -58,10 +58,17 @@ def load_model_from_spaces():
     """Pobiera i wczytuje pipeline PyCaret z DigitalOcean Spaces."""
     try:
         client = get_boto_client()
-        local_path = 'downloaded_model.pkl'
-        client.download_file(DO_SPACES_BUCKET, MODEL_FILE_KEY, local_path)
-        model = load_model(local_path)
-        os.remove(local_path)
+        local_path_with_ext = 'downloaded_model.pkl'
+        local_path_no_ext = 'downloaded_model'
+        
+        client.download_file(DO_SPACES_BUCKET, MODEL_FILE_KEY, local_path_with_ext)
+        
+        # --- OSTATECZNA POPRAWKA ---
+        # Przekazujemy do funkcji load_model nazwę pliku BEZ rozszerzenia .pkl,
+        # ponieważ funkcja dodaje je automatycznie.
+        model = load_model(local_path_no_ext)
+        
+        os.remove(local_path_with_ext)
         return model
     except Exception as e:
         st.error(f"Nie udało się załadować modelu: {e}")
@@ -81,9 +88,6 @@ def format_time_from_seconds(total_seconds):
 
 def extract_data_with_llm(user_input):
     """Używa LLM do ekstrakcji danych z tekstu użytkownika."""
-    # --- OSTATECZNA POPRAWKA LANGFUSE ---
-    # Zamiast dekoratora, używamy jawnego bloku `trace`.
-    # To jest bardziej niezawodne i omija problemy z importem.
     trace = None
     if langfuse:
         trace = langfuse.trace(
