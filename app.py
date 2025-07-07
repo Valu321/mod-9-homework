@@ -63,9 +63,6 @@ def load_model_from_spaces():
         
         client.download_file(DO_SPACES_BUCKET, MODEL_FILE_KEY, local_path_with_ext)
         
-        # --- OSTATECZNA POPRAWKA ---
-        # Przekazujemy do funkcji load_model nazwę pliku BEZ rozszerzenia .pkl,
-        # ponieważ funkcja dodaje je automatycznie.
         model = load_model(local_path_no_ext)
         
         os.remove(local_path_with_ext)
@@ -120,8 +117,13 @@ def extract_data_with_llm(user_input):
 
 # --- Główna aplikacja Streamlit ---
 st.set_page_config(page_title="Szacowanie Czasu Półmaratonu", layout="wide")
-st.title("🏃‍♂️ Estymator Czasu Ukończenia Półmaratonu (v2 - AutoML)")
+
+st.title("🏃‍♂️ Estymator Czasu Ukończenia Półmaratonu")
 st.markdown("Opisz siebie, a my oszacujemy Twój czas! Podaj swój **wiek**, **płeć** oraz **średnie tempo na 5 km**.")
+
+# --- DODANY OBRAZEK ---
+st.image("https://images.pexels.com/photos/255934/pexels-photo-255934.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", caption="Gotowi do startu!")
+
 
 pipeline = load_model_from_spaces()
 
