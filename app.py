@@ -9,10 +9,8 @@ import io
 from dotenv import load_dotenv
 import pandera as pa
 from pandera.errors import SchemaError
-# --- OSTATECZNA POPRAWKA ---
-# Importujemy Langfuse i dekorator trace z jego właściwej lokalizacji
+# Ostateczna, poprawna wersja importu
 from langfuse import Langfuse
-from langfuse.decorators import trace
 from pycaret.regression import load_model, predict_model
 
 # Wczytaj zmienne środowiskowe z pliku .env
@@ -33,14 +31,14 @@ if OPENAI_API_KEY:
     openai.api_key = OPENAI_API_KEY
 
 # Inicjalizacja Langfuse.
-# Jeśli klucze nie zostaną podane, dekorator @trace nie będzie nic robił.
+# Jeśli klucze nie zostaną podane, obiekt nie zostanie utworzony.
+langfuse = None
 if LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY:
     langfuse = Langfuse(
         public_key=LANGFUSE_PUBLIC_KEY,
         secret_key=LANGFUSE_SECRET_KEY,
         host="https://cloud.langfuse.com"
     )
-
 
 # --- Schemat walidacji Pandera ---
 llm_output_schema = pa.DataFrameSchema({
@@ -81,10 +79,18 @@ def format_time_from_seconds(total_seconds):
     seconds = int(total_seconds % 60)
     return f"{hours:02}:{minutes:02}:{seconds:02}"
 
-# Używamy poprawnego, zaimportowanego dekoratora @trace()
-@trace()
 def extract_data_with_llm(user_input):
     """Używa LLM do ekstrakcji danych z tekstu użytkownika."""
+    # --- OSTATECZNA POPRAWKA LANGFUSE ---
+    # Zamiast dekoratora, używamy jawnego bloku `trace`.
+    # To jest bardziej niezawodne i omija problemy z importem.
+    trace = None
+    if langfuse:
+        trace = langfuse.trace(
+            name="data-extraction",
+            input={"user_description": user_input}
+        )
+
     if not OPENAI_API_KEY:
         st.error("Klucz API OpenAI nie jest skonfigurowany.")
         return None
@@ -98,8 +104,13 @@ def extract_data_with_llm(user_input):
     """
     try:
         response = openai.chat.completions.create(model="gpt-3.5-turbo-0125", messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_input}], response_format={"type": "json_object"})
-        return json.loads(response.choices[0].message.content)
+        result = json.loads(response.choices[0].message.content)
+        if trace:
+            trace.update(output=result)
+        return result
     except Exception as e:
+        if trace:
+            trace.update(output={"error": str(e)})
         st.error(f"Błąd podczas komunikacji z OpenAI: {e}")
         return None
 
