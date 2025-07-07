@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import streamlit as st
 import pandas as pd
 import openai
@@ -7,14 +5,12 @@ import os
 import json
 import boto3
 from botocore.client import Config
-import joblib
 import io
-from langfuse.client import Langfuse
-from langfuse.decorators import observe
+from dotenv import load_dotenv
 import pandera as pa
 from pandera.errors import SchemaError
-from dotenv import load_dotenv
-# Importujemy funkcje do ładowania i predykcji z PyCaret
+# Importujemy główne klasy i funkcje
+from langfuse import Langfuse
 from pycaret.regression import load_model, predict_model
 
 # Wczytaj zmienne środowiskowe z pliku .env
@@ -28,14 +24,29 @@ DO_SPACES_KEY = os.getenv('DO_SPACES_KEY')
 DO_SPACES_SECRET = os.getenv('DO_SPACES_SECRET')
 DO_SPACES_ENDPOINT_URL = os.getenv('DO_SPACES_ENDPOINT_URL', 'https://fra1.digitaloceanspaces.com')
 DO_SPACES_BUCKET = os.getenv('DO_SPACES_BUCKET')
-# Zmieniamy ścieżkę do nowego pliku modelu
 MODEL_FILE_KEY = 'models/halfmarathon_pipeline.pkl'
 
 # Inicjalizacja klientów
 if OPENAI_API_KEY:
     openai.api_key = OPENAI_API_KEY
 
-langfuse = Langfuse(public_key=LANGFUSE_PUBLIC_KEY, secret_key=LANGFUSE_SECRET_KEY, host="https://cloud.langfuse.com")
+# Inicjalizacja Langfuse - upewniamy się, że klucze istnieją
+if LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY:
+    langfuse = Langfuse(
+        public_key=LANGFUSE_PUBLIC_KEY,
+        secret_key=LANGFUSE_SECRET_KEY,
+        host="https://cloud.langfuse.com"
+    )
+else:
+    # Tworzymy atrapę obiektu, jeśli klucze nie są dostępne,
+    # aby uniknąć błędów przy wywoływaniu dekoratora.
+    class MockLangfuse:
+        def observe(self):
+            def decorator(func):
+                return func
+            return decorator
+    langfuse = MockLangfuse()
+
 
 # --- Schemat walidacji Pandera ---
 llm_output_schema = pa.DataFrameSchema({
@@ -48,19 +59,17 @@ llm_output_schema = pa.DataFrameSchema({
 @st.cache_resource
 def get_boto_client():
     session = boto3.session.Session()
-    return session.client('s3', config=Config(s3={'addressing_style': 'virtual'}), region_name=DO_SPACES_ENDPOINT_URL.split('.')[0], endpoint_url=DO_SPACES_ENDPOINT_URL, aws_access_key_id=DO_SPACES_KEY, aws_secret_access_key=DO_SPACES_SECRET)
+    return session.client('s3', config=Config(s3={'addressing_style': 'path'}), region_name=DO_SPACES_ENDPOINT_URL.split('//')[1].split('.')[0], endpoint_url=DO_SPACES_ENDPOINT_URL, aws_access_key_id=DO_SPACES_KEY, aws_secret_access_key=DO_SPACES_SECRET)
 
 @st.cache_resource
 def load_model_from_spaces():
     """Pobiera i wczytuje pipeline PyCaret z DigitalOcean Spaces."""
     try:
         client = get_boto_client()
-        # Zapisujemy pobrany model tymczasowo na dysku, aby PyCaret mógł go załadować
         local_path = 'downloaded_model.pkl'
         client.download_file(DO_SPACES_BUCKET, MODEL_FILE_KEY, local_path)
-        # Używamy funkcji PyCaret do załadowania modelu
         model = load_model(local_path)
-        os.remove(local_path) # Usuwamy plik tymczasowy
+        os.remove(local_path)
         return model
     except Exception as e:
         st.error(f"Nie udało się załadować modelu: {e}")
@@ -78,9 +87,11 @@ def format_time_from_seconds(total_seconds):
     seconds = int(total_seconds % 60)
     return f"{hours:02}:{minutes:02}:{seconds:02}"
 
-@observe()
+# --- POPRAWKA ---
+# Używamy dekoratora bezpośrednio z instancji klienta langfuse
+@langfuse.observe()
 def extract_data_with_llm(user_input):
-    # ... (reszta funkcji bez zmian)
+    """Używa LLM do ekstrakcji danych z tekstu użytkownika."""
     if not OPENAI_API_KEY:
         st.error("Klucz API OpenAI nie jest skonfigurowany.")
         return None
@@ -94,7 +105,7 @@ def extract_data_with_llm(user_input):
     """
     try:
         response = openai.chat.completions.create(model="gpt-3.5-turbo-0125", messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_input}], response_format={"type": "json_object"})
-        langfuse.flush()
+        # Usunięto langfuse.flush(), ponieważ dekorator zarządza tym automatycznie
         return json.loads(response.choices[0].message.content)
     except Exception as e:
         st.error(f"Błąd podczas komunikacji z OpenAI: {e}")
@@ -116,7 +127,7 @@ if st.button("Szacuj czas", type="primary"):
         st.error("Model predykcyjny nie jest dostępny. Skontaktuj się z administratorem.")
     else:
         with st.spinner("Analizuję Twoje dane i liczę..."):
-            extracted_data = extract_data_with_llm(user_description)
+            extracted_data = extract_data_with_llm(user_input)
             if not extracted_data:
                 st.error("Nie udało się przetworzyć Twojego opisu.")
             else:
@@ -126,7 +137,7 @@ if st.button("Szacuj czas", type="primary"):
                     validation_df = pd.DataFrame([extracted_data])
                     llm_output_schema.validate(validation_df)
                     st.info("Dane wejściowe poprawne. Przystępuję do predykcji.")
-
+                    
                     wiek = extracted_data["wiek"]
                     plec = extracted_data["plec"]
                     tempo_5km_str = extracted_data["tempo_5km"]
@@ -134,10 +145,8 @@ if st.button("Szacuj czas", type="primary"):
                     tempo_1km_s = czas_5km_s / 5
 
                     input_df = pd.DataFrame({'wiek': [wiek], 'plec': [plec], 'tempo_5km_s_na_km': [tempo_1km_s]})
-
-                    # Używamy funkcji PyCaret do predykcji
+                    
                     predictions = predict_model(pipeline, data=input_df)
-                    # Wynik znajduje się w kolumnie 'prediction_label'
                     prediction_s = predictions['prediction_label'].iloc[0]
                     predicted_time_str = format_time_from_seconds(prediction_s)
 
