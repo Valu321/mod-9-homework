@@ -9,8 +9,9 @@ import io
 from dotenv import load_dotenv
 import pandera as pa
 from pandera.errors import SchemaError
-# Importujemy główne klasy i funkcje
+# Poprawione importy - importujemy Langfuse i observe osobno
 from langfuse import Langfuse
+from langfuse.decorators import observe
 from pycaret.regression import load_model, predict_model
 
 # Wczytaj zmienne środowiskowe z pliku .env
@@ -30,23 +31,14 @@ MODEL_FILE_KEY = 'models/halfmarathon_pipeline.pkl'
 if OPENAI_API_KEY:
     openai.api_key = OPENAI_API_KEY
 
-# Inicjalizacja Langfuse - upewniamy się, że klucze istnieją
+# Inicjalizacja Langfuse - upewniamy się, że klucze istnieją.
+# Dekorator @observe będzie działał tylko, jeśli ten obiekt zostanie poprawnie utworzony.
 if LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY:
     langfuse = Langfuse(
         public_key=LANGFUSE_PUBLIC_KEY,
         secret_key=LANGFUSE_SECRET_KEY,
         host="https://cloud.langfuse.com"
     )
-else:
-    # Tworzymy atrapę obiektu, jeśli klucze nie są dostępne,
-    # aby uniknąć błędów przy wywoływaniu dekoratora.
-    class MockLangfuse:
-        def observe(self):
-            def decorator(func):
-                return func
-            return decorator
-    langfuse = MockLangfuse()
-
 
 # --- Schemat walidacji Pandera ---
 llm_output_schema = pa.DataFrameSchema({
@@ -87,9 +79,8 @@ def format_time_from_seconds(total_seconds):
     seconds = int(total_seconds % 60)
     return f"{hours:02}:{minutes:02}:{seconds:02}"
 
-# --- POPRAWKA ---
-# Używamy dekoratora bezpośrednio z instancji klienta langfuse
-@langfuse.observe()
+# Używamy poprawnie zaimportowanego dekoratora @observe()
+@observe()
 def extract_data_with_llm(user_input):
     """Używa LLM do ekstrakcji danych z tekstu użytkownika."""
     if not OPENAI_API_KEY:
@@ -105,7 +96,6 @@ def extract_data_with_llm(user_input):
     """
     try:
         response = openai.chat.completions.create(model="gpt-3.5-turbo-0125", messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_input}], response_format={"type": "json_object"})
-        # Usunięto langfuse.flush(), ponieważ dekorator zarządza tym automatycznie
         return json.loads(response.choices[0].message.content)
     except Exception as e:
         st.error(f"Błąd podczas komunikacji z OpenAI: {e}")
@@ -127,7 +117,9 @@ if st.button("Szacuj czas", type="primary"):
         st.error("Model predykcyjny nie jest dostępny. Skontaktuj się z administratorem.")
     else:
         with st.spinner("Analizuję Twoje dane i liczę..."):
-            extracted_data = extract_data_with_llm(user_input)
+            # --- POPRAWKA ---
+            # Używamy poprawnej nazwy zmiennej 'user_description'
+            extracted_data = extract_data_with_llm(user_description)
             if not extracted_data:
                 st.error("Nie udało się przetworzyć Twojego opisu.")
             else:
