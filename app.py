@@ -118,7 +118,17 @@ def extract_data_with_llm(user_input):
     if not OPENAI_API_KEY:
         st.error("Klucz API OpenAI nie jest skonfigurowany.", icon="🔑")
         return None
-    system_prompt = "..." # (Prompt bez zmian)
+        
+    # --- POPRAWKA ---
+    # Upewniamy się, że prompt zawiera słowo "JSON", aby spełnić wymagania API.
+    system_prompt = """
+    Jesteś ekspertem w analizie tekstu. Twoim zadaniem jest wyekstrahowanie trzech informacji z tekstu podanego przez użytkownika: wieku, płci oraz tempa biegu na 5km.
+    Zwróć odpowiedź wyłącznie w formacie JSON.
+    - Wiek (`wiek`) powinien być liczbą całkowitą.
+    - Płeć (`plec`) powinna być jedną z dwóch wartości: 'M' (mężczyzna) lub 'K' (kobieta).
+    - Tempo na 5km (`tempo_5km`) powinno być w formacie "MM:SS".
+    Jeśli którejś informacji brakuje, ustaw dla niej wartość null. Upewnij się, że odpowiedź to poprawny obiekt JSON.
+    """
     try:
         response = openai.chat.completions.create(model="gpt-3.5-turbo-0125", messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_input}], response_format={"type": "json_object"})
         result = json.loads(response.choices[0].message.content)
