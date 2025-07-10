@@ -128,7 +128,7 @@ st.markdown("Opisz siebie, a my oszacujemy Twój czas! Podaj swój **wiek**, **p
 
 # --- ZMIENIONY OBRAZEK ---
 # Używamy ścieżki do "surowego" pliku na GitHubie.
-st.image("https://mod-9-homework.fra1.digitaloceanspaces.com/Image_19f2o619f2o619f2.png", caption="Walczymy o nowe rekordy!")
+st.image("https://mod-9-homework.fra1.digitaloceanspaces.com/Image_19f2o619f2o619f2.png", caption="Walczymy o nowe rekordy!", use_column_width=True)
 
 
 pipeline = load_model_from_spaces()
