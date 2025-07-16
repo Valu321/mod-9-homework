@@ -71,9 +71,9 @@ st.markdown("""
 
 # --- Schemat walidacji Pandera ---
 llm_output_schema = pa.DataFrameSchema({
-    "wiek": pa.Column(int, checks=pa.Check.in_range(1, 100), nullable=False),
-    "plec": pa.Column(str, checks=pa.Check.isin(['K', 'M']), nullable=False),
-    "tempo_5km": pa.Column(str, checks=pa.Check.str_matches(r'^\d{1,2}:\d{2}$'), nullable=False),
+    "wiek": pa.Column(int, checks=pa.Check.in_range(1, 100), nullable=False, error="Wiek musi być liczbą od 1 do 100."),
+    "plec": pa.Column(str, checks=pa.Check.isin(['K', 'M']), nullable=False, error="Płeć musi być określona jako 'K' lub 'M'."),
+    "tempo_5km": pa.Column(str, checks=pa.Check.str_matches(r'^\d{1,2}:\d{2}$'), nullable=False, error="Tempo na 5km musi być w formacie MM:SS."),
 })
 
 # --- Funkcje pomocnicze ---
@@ -119,8 +119,6 @@ def extract_data_with_llm(user_input):
         st.error("Klucz API OpenAI nie jest skonfigurowany.", icon="🔑")
         return None
         
-    # --- POPRAWKA ---
-    # Upewniamy się, że prompt zawiera słowo "JSON", aby spełnić wymagania API.
     system_prompt = """
     Jesteś ekspertem w analizie tekstu. Twoim zadaniem jest wyekstrahowanie trzech informacji z tekstu podanego przez użytkownika: wieku, płci oraz tempa biegu na 5km.
     Zwróć odpowiedź wyłącznie w formacie JSON.
@@ -138,7 +136,7 @@ def extract_data_with_llm(user_input):
     except Exception as e:
         if trace:
             trace.update(output={"error": str(e)})
-        st.error(f"Błąd podczas komunikacji z OpenAI: {e}", icon="🔥")
+        st.error(f"Błąd podczas komunikacji z OpenAI: {e}", icon="�")
         return None
 
 # --- Inicjalizacja stanu sesji ---
@@ -190,8 +188,11 @@ if predict_button:
     else:
         with st.spinner("Analizuję Twoje dane i liczę... 🤖"):
             extracted_data = extract_data_with_llm(user_description)
-            if not extracted_data:
-                st.error("Nie udało się przetworzyć Twojego opisu. Spróbuj jeszcze raz!", icon="😟")
+            
+            # --- POPRAWKA WALIDACJI ---
+            # Sprawdzamy, czy LLM w ogóle coś wyekstrahował
+            if not extracted_data or all(value is None for value in extracted_data.values()):
+                st.error("Nie udało mi się znaleźć potrzebnych informacji w Twoim opisie. Upewnij się, że podałeś/aś swój **wiek**, **płeć** oraz **tempo na 5km**.", icon="😟")
                 st.session_state.prediction_result = None
             else:
                 try:
@@ -210,14 +211,14 @@ if predict_button:
                     predictions = predict_model(pipeline, data=input_df)
                     prediction_s = predictions['prediction_label'].iloc[0]
                     
-                    # Zapisujemy wynik w stanie sesji
                     st.session_state.prediction_result = {
                         "extracted_data": extracted_data,
                         "predicted_time_str": format_time_from_seconds(prediction_s)
                     }
 
                 except SchemaError as err:
-                    st.error(f"Błąd walidacji danych: {err.failure_cases['failure_case'][0]}", icon="🔎")
+                    # Wyświetlamy bardziej przyjazny komunikat błędu
+                    st.error(f"Znalazłem błąd w podanych danych: **{err.failure_cases['failure_case'][0]}** Popraw swój opis i spróbuj ponownie.", icon="🔎")
                     st.session_state.prediction_result = None
                 except Exception as e:
                     st.error(f"Wystąpił nieoczekiwany błąd: {e}", icon="💥")
@@ -246,3 +247,4 @@ if st.session_state.prediction_result:
 
 st.markdown("---")
 st.info("Aplikacja wykorzystuje model AutoML (PyCaret) oraz model LLM (OpenAI) do analizy tekstu. Pamiętaj, że jest to tylko estymacja!", icon="ℹ️")
+�
