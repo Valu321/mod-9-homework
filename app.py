@@ -244,3 +244,4 @@ if st.session_state.prediction_result:
 
 st.markdown("---")
 st.info("Aplikacja wykorzystuje model AutoML (PyCaret) oraz model LLM (OpenAI) do analizy tekstu. Pamiętaj, że jest to tylko estymacja!", icon="ℹ️")
+#Koniec aplikacji
