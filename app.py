@@ -9,6 +9,7 @@ import io
 from dotenv import load_dotenv
 import pandera as pa
 from pandera.errors import SchemaError
+# Ostateczna, poprawna wersja importu
 from langfuse import Langfuse
 from pycaret.regression import load_model, predict_model
 
@@ -71,9 +72,9 @@ st.markdown("""
 
 # --- Schemat walidacji Pandera ---
 llm_output_schema = pa.DataFrameSchema({
-    "wiek": pa.Column(int, checks=pa.Check.in_range(1, 100), nullable=False, error="Wiek musi być liczbą od 1 do 100."),
-    "plec": pa.Column(str, checks=pa.Check.isin(['K', 'M']), nullable=False, error="Płeć musi być określona jako 'K' lub 'M'."),
-    "tempo_5km": pa.Column(str, checks=pa.Check.str_matches(r'^\d{1,2}:\d{2}$'), nullable=False, error="Tempo na 5km musi być w formacie MM:SS."),
+    "wiek": pa.Column(int, checks=pa.Check.in_range(1, 100), nullable=False),
+    "plec": pa.Column(str, checks=pa.Check.isin(['K', 'M']), nullable=False),
+    "tempo_5km": pa.Column(str, checks=pa.Check.str_matches(r'^\d{1,2}:\d{2}$'), nullable=False),
 })
 
 # --- Funkcje pomocnicze ---
@@ -111,9 +112,11 @@ def format_time_from_seconds(total_seconds):
 
 def extract_data_with_llm(user_input):
     """Używa LLM do ekstrakcji danych z tekstu użytkownika."""
+    # --- OSTATECZNA POPRAWKA LANGFUSE ---
+    # Używamy jawnej, najbardziej podstawowej metody śledzenia.
     trace = None
     if langfuse:
-        trace = langfuse.trace(name="data-extraction", input={"user_description": user_input})
+        trace = langfuse.trace(name="data-extraction", input=user_input)
 
     if not OPENAI_API_KEY:
         st.error("Klucz API OpenAI nie jest skonfigurowany.", icon="🔑")
@@ -128,14 +131,27 @@ def extract_data_with_llm(user_input):
     Jeśli którejś informacji brakuje, ustaw dla niej wartość null. Upewnij się, że odpowiedź to poprawny obiekt JSON.
     """
     try:
-        response = openai.chat.completions.create(model="gpt-3.5-turbo-0125", messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_input}], response_format={"type": "json_object"})
-        result = json.loads(response.choices[0].message.content)
+        # Tworzymy "generację" wewnątrz naszego śladu
         if trace:
-            trace.update(output=result)
+            generation = trace.generation(
+                name="llm-extraction",
+                input=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_input}],
+                model="gpt-3.5-turbo-0125"
+            )
+
+        response = openai.chat.completions.create(
+            model="gpt-3.5-turbo-0125",
+            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_input}],
+            response_format={"type": "json_object"}
+        )
+        result = json.loads(response.choices[0].message.content)
+        
+        # Logujemy wynik i zużycie do Langfuse
+        if trace and generation:
+            generation.end(output=result, usage=response.usage)
+
         return result
     except Exception as e:
-        if trace:
-            trace.update(output={"error": str(e)})
         st.error(f"Błąd podczas komunikacji z OpenAI: {e}", icon="🔥")
         return None
 
@@ -162,7 +178,7 @@ pipeline = load_model_from_spaces()
 
 
 # --- Formularz wejściowy ---
-st.write("### 💬 Krok 1: Opowiedz nam o sobie")
+st.write("### � Krok 1: Opowiedz nam o sobie")
 user_description = st.text_area(
     "Przedstaw się:",
     value=st.session_state.user_input,
@@ -215,7 +231,7 @@ if predict_button:
                     }
 
                 except SchemaError as err:
-                    st.error(f"Znalazłem błąd w podanych danych: **{err.failure_cases['failure_case'][0]}** Popraw swój opis i spróbuj ponownie.", icon="🔎")
+                    st.error(f"Znalazłem błąd w podanych danych: {err}", icon="🔎")
                     st.session_state.prediction_result = None
                 except Exception as e:
                     st.error(f"Wystąpił nieoczekiwany błąd: {e}", icon="💥")
@@ -244,4 +260,3 @@ if st.session_state.prediction_result:
 
 st.markdown("---")
 st.info("Aplikacja wykorzystuje model AutoML (PyCaret) oraz model LLM (OpenAI) do analizy tekstu. Pamiętaj, że jest to tylko estymacja!", icon="ℹ️")
-#Koniec aplikacji
