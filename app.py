@@ -136,7 +136,7 @@ def extract_data_with_llm(user_input):
     except Exception as e:
         if trace:
             trace.update(output={"error": str(e)})
-        st.error(f"Błąd podczas komunikacji z OpenAI: {e}", icon="�")
+        st.error(f"Błąd podczas komunikacji z OpenAI: {e}", icon="🔥")
         return None
 
 # --- Inicjalizacja stanu sesji ---
@@ -189,8 +189,6 @@ if predict_button:
         with st.spinner("Analizuję Twoje dane i liczę... 🤖"):
             extracted_data = extract_data_with_llm(user_description)
             
-            # --- POPRAWKA WALIDACJI ---
-            # Sprawdzamy, czy LLM w ogóle coś wyekstrahował
             if not extracted_data or all(value is None for value in extracted_data.values()):
                 st.error("Nie udało mi się znaleźć potrzebnych informacji w Twoim opisie. Upewnij się, że podałeś/aś swój **wiek**, **płeć** oraz **tempo na 5km**.", icon="😟")
                 st.session_state.prediction_result = None
@@ -217,7 +215,6 @@ if predict_button:
                     }
 
                 except SchemaError as err:
-                    # Wyświetlamy bardziej przyjazny komunikat błędu
                     st.error(f"Znalazłem błąd w podanych danych: **{err.failure_cases['failure_case'][0]}** Popraw swój opis i spróbuj ponownie.", icon="🔎")
                     st.session_state.prediction_result = None
                 except Exception as e:
@@ -247,4 +244,3 @@ if st.session_state.prediction_result:
 
 st.markdown("---")
 st.info("Aplikacja wykorzystuje model AutoML (PyCaret) oraz model LLM (OpenAI) do analizy tekstu. Pamiętaj, że jest to tylko estymacja!", icon="ℹ️")
-�
