@@ -31,3 +31,5 @@ From_gotoit
 *.log
 spec_old.yaml
 notebook.ipynb
+powershell.txt
+*.bat

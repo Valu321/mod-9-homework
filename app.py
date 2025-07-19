@@ -80,7 +80,7 @@ llm_output_schema = pa.DataFrameSchema({
 # --- Funkcje pomocnicze ---
 @st.cache_resource
 def get_boto_client():
-    session = boto3.session.Session()
+    session = boto3.Session()
     return session.client('s3', config=Config(s3={'addressing_style': 'path'}), region_name=DO_SPACES_ENDPOINT_URL.split('//')[1].split('.')[0], endpoint_url=DO_SPACES_ENDPOINT_URL, aws_access_key_id=DO_SPACES_KEY, aws_secret_access_key=DO_SPACES_SECRET)
 
 @st.cache_resource
@@ -144,7 +144,15 @@ def extract_data_with_llm(user_input):
             messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_input}],
             response_format={"type": "json_object"}
         )
-        result = json.loads(response.choices[0].message.content)
+        
+        content = response.choices[0].message.content
+        if not content:
+            st.error("Błąd: Otrzymano pustą odpowiedź z API OpenAI.", icon="🔥")
+            if trace:
+                trace.score(name="data-extraction-quality", value=0, comment="LLM returned empty content.")
+            return None
+            
+        result = json.loads(content)
         
         # Logujemy wynik i zużycie do Langfuse
         if trace and generation:
@@ -217,6 +225,10 @@ if predict_button:
                     plec = extracted_data["plec"]
                     tempo_5km_str = extracted_data["tempo_5km"]
                     czas_5km_s = time_str_to_seconds(tempo_5km_str)
+                    
+                    if czas_5km_s is None:
+                        raise ValueError("Nie można przetworzyć tempa na 5km. Sprawdź, czy jest w formacie MM:SS.")
+
                     tempo_1km_s = czas_5km_s / 5
 
                     input_data = {'wiek': [wiek], 'plec': [plec], 'tempo_5km_s_na_km': [tempo_1km_s]}
